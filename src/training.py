@@ -59,3 +59,12 @@ def get_batch(split="train"):
 # build model
 
 model = PolarBearLLM(mcfg)
+model.to(device)
+
+# optimizer
+optimizer = model.configure_optimizers(
+    weight_decay=trcfg.weight_decay,
+    learning_rate=trcfg.learning_rate,
+    betas=(trcfg.beta1, trcfg.beta2),
+    device_type=trcfg.device,
+)
