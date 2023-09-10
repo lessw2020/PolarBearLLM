@@ -12,6 +12,9 @@ import torch.nn as nn
 from normalizations import SimpleRMSNorm
 import inspect
 
+# from triton_masked import attention as triton_attention
+from triton_flash2 import attention as triton_attention
+
 # keeping attention local for a bit to test out flash/triton stuff
 
 
@@ -20,14 +23,15 @@ class CausalSelfAttention(nn.Module):
         super().__init__()
         self.emb_dim = cfg.emb_dim
         self.num_heads = cfg.num_heads
-        self.use_flash = cfg.use_flash
+        self.use_sdpa = cfg.use_sdpa
+        self.use_triton = cfg.use_triton_flash
         assert self.emb_dim % self.num_heads == 0
         self.seq_len = cfg.max_seq_len
         self.config = cfg
         self.in_proj = nn.Linear(self.emb_dim, 3 * self.emb_dim)
         self.out_proj = nn.Linear(self.emb_dim, self.emb_dim)
-
-        if not self.use_flash:
+        self.scale = 0
+        if not self.use_sdpa:
             # causal_mask = torch.triu(torch.ones(self.seq_len, self.seq_len) * float("-inf"), diagonal=1)
             # causal mask
             self.register_buffer(
@@ -56,8 +60,20 @@ class CausalSelfAttention(nn.Module):
             1, 2
         )  # (B, nh, T, hs)
 
+        if not self.scale:
+            self.scale = math.sqrt(k.size(-1))
+            print(f"{self.scale=}")
+        print(f"{k.shape=}")
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        if self.use_flash:
+        if self.use_triton:
+            y = triton_attention(
+                q,
+                k,
+                v,
+                True,
+                self.scale,
+            )
+        elif self.use_sdpa:
             # efficient attention using Flash Attention CUDA kernels
             y = torch.nn.functional.scaled_dot_product_attention(
                 q, k, v, attn_mask=None, dropout_p=0, is_causal=True
@@ -67,7 +83,7 @@ class CausalSelfAttention(nn.Module):
             att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
             att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
             att = F.softmax(att, dim=-1)
-            att = self.attn_dropout(att)
+            # att = self.attn_dropout(att)
             y = att @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
 
         y = (

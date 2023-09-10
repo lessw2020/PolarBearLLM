@@ -59,7 +59,7 @@ def get_batch(split="train"):
 
 # build model
 
-model = PolarBearLLM(mcfg)
+model = PolarBearLLM(mcfg).to(torch.bfloat16)
 model.to(device)
 
 # optimizer
