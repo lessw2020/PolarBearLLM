@@ -23,7 +23,7 @@ class CausalSelfAttention(nn.Module):
         self.use_flash = cfg.use_flash
         assert self.emb_dim % self.num_heads == 0
         self.seq_len = cfg.max_seq_len
-
+        self.config = cfg
         self.in_proj = nn.Linear(self.emb_dim, 3 * self.emb_dim)
         self.out_proj = nn.Linear(self.emb_dim, self.emb_dim)
 
@@ -46,13 +46,13 @@ class CausalSelfAttention(nn.Module):
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         q, k, v = self.in_proj(x).split(self.emb_dim, dim=2)
-        k = k.view(B, T, self.n_head, C // self.num_heads).transpose(
+        k = k.view(B, T, self.num_heads, C // self.num_heads).transpose(
             1, 2
         )  # (B, nh, T, hs)
-        q = q.view(B, T, self.n_head, C // self.num_heads).transpose(
+        q = q.view(B, T, self.num_heads, C // self.num_heads).transpose(
             1, 2
         )  # (B, nh, T, hs)
-        v = v.view(B, T, self.n_head, C // self.num_heads).transpose(
+        v = v.view(B, T, self.num_heads, C // self.num_heads).transpose(
             1, 2
         )  # (B, nh, T, hs)
 
@@ -162,7 +162,7 @@ class PolarBearLLM(nn.Module):
         device = x.device
         b, t = x.size()
         assert (
-            t <= self.config.max_seq_len
+            t <= self.cfg.max_seq_len
         ), f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         pos = torch.arange(0, t, dtype=torch.long, device=device)  # shape (t)
 

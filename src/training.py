@@ -119,12 +119,13 @@ if trcfg.wandb_log and trcfg.master_process:
 X, Y = get_batch("train")  # fetch the very first batch
 t0 = time.time()
 local_iter_num = 0  # number of iterations in the lifetime of this process
-raw_model = model.module if trcfg.ddp else model  # unwrap DDP container if needed
+raw_model = model.module if trcfg.use_ddp else model  # unwrap DDP container if needed
 running_mfu = -1.0
 out_dir = trcfg.out_dir
 iter_num = 0
 master_process = trcfg.master_process
 gradient_accumulation_steps = 1
+best_val_loss = 1e10
 
 while True:
     # determine and set the learning rate for this iteration
@@ -150,7 +151,7 @@ while True:
             )
         if losses["val"] < best_val_loss or trcfg.always_save_checkpoint:
             best_val_loss = losses["val"]
-            if iter_num > 0:
+            if iter_num > 100:
                 checkpoint = {
                     "model": raw_model.state_dict(),
                     "optimizer": optimizer.state_dict(),
