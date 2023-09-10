@@ -12,8 +12,9 @@ import torch.nn as nn
 from normalizations import SimpleRMSNorm
 import inspect
 
-# from triton_masked import attention as triton_attention
-from triton_flash2 import attention as triton_attention
+from triton_masked import attention as triton_attention
+
+# from triton_flash2 import attention as triton_attention
 
 # keeping attention local for a bit to test out flash/triton stuff
 
@@ -63,7 +64,7 @@ class CausalSelfAttention(nn.Module):
         if not self.scale:
             self.scale = math.sqrt(k.size(-1))
             print(f"{self.scale=}")
-        print(f"{k.shape=}")
+            print(f"{k.shape=}")
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         if self.use_triton:
             y = triton_attention(
@@ -227,6 +228,29 @@ class PolarBearLLM(nn.Module):
             optim_groups, lr=learning_rate, betas=betas, **extra_args
         )
         return optimizer
+
+    def estimate_mfu(self, fwdbwd_per_iter, dt):
+        """estimate model flops utilization (MFU) in units of A100 bfloat16 peak FLOPS"""
+        # first estimate the number of flops we do per iteration.
+        # see PaLM paper Appendix B as ref: https://arxiv.org/abs/2204.02311
+        N = self.get_num_params()
+        cfg = self.cfg
+        L, H, Q, T = (
+            cfg.num_layers,
+            cfg.num_heads,
+            cfg.emb_dim // cfg.num_heads,
+            cfg.max_seq_len,
+        )
+        flops_per_token = 6 * N + 12 * L * H * Q * T
+        flops_per_fwdbwd = flops_per_token * T
+        flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
+        # express our flops throughput as ratio of A100 bfloat16 peak flops
+        flops_achieved = flops_per_iter * (1.0 / dt)  # per second
+        flops_promised = (
+            125  # A10  312e12  # A100 GPU bfloat16 peak flops is 312 TFLOPS
+        )
+        mfu = flops_achieved / flops_promised
+        return mfu
 
 
 class TransformerLayer(nn.Module):

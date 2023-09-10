@@ -11,6 +11,7 @@ import torch.nn as nn
 
 @dataclass
 class TrainingConfig:
+    max_iters = 10  # 6000  # total number of training iterations
     out_dir = "out"
     eval_interval = 2000
     log_interval = 1
@@ -23,7 +24,6 @@ class TrainingConfig:
     # gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
     batch_size = 12
     learning_rate = 6e-4  # max learning rate
-    max_iters = 2  # 6000  # total number of training iterations
     weight_decay = 1e-1
     beta1 = 0.9
     beta2 = 0.95
