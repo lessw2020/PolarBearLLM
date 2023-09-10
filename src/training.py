@@ -124,6 +124,7 @@ running_mfu = -1.0
 out_dir = trcfg.out_dir
 iter_num = 0
 master_process = trcfg.master_process
+gradient_accumulation_steps = 1
 
 while True:
     # determine and set the learning rate for this iteration
@@ -163,7 +164,7 @@ while True:
     if iter_num == 0 and trcfg.eval_only:
         break
 
-    # forward backward update, with optional gradient accumulation to simulate larger batch size
+    """# forward backward update, with optional gradient accumulation to simulate larger batch size
     # and using the GradScaler if data type is float16
     for micro_step in range(gradient_accumulation_steps):
         if ddp:
@@ -192,17 +193,25 @@ while True:
     scaler.update()
     # flush the gradients as soon as we can, no need for this memory anymore
     optimizer.zero_grad(set_to_none=True)
+    """
+    logits, loss = model(X, Y)
+    X, Y = get_batch()
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
 
     # timing and logging
     t1 = time.time()
     dt = t1 - t0
     t0 = t1
-    if iter_num % log_interval == 0 and master_process:
+    if iter_num % trcfg.log_interval == 0 and master_process:
         # get loss as float. note: this is a CPU-GPU sync point
         # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
         lossf = loss.item() * gradient_accumulation_steps
         if local_iter_num >= 5:  # let the training loop settle a bit
-            mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
+            mfu = raw_model.estimate_mfu(
+                trcfg.batch_size * gradient_accumulation_steps, dt
+            )
             running_mfu = mfu if running_mfu == -1.0 else 0.9 * running_mfu + 0.1 * mfu
         print(
             f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%"
@@ -211,5 +220,5 @@ while True:
     local_iter_num += 1
 
     # termination conditions
-    if iter_num > max_iters:
+    if iter_num > trcfg.max_iters:
         break
