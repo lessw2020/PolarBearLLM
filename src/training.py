@@ -58,6 +58,15 @@ def get_batch(split="train"):
 
 
 # build model
+from contextlib import nullcontext
+
+dtype = "bfloat16"
+ptdtype = {
+    "float32": torch.float32,
+    "bfloat16": torch.bfloat16,
+    "float16": torch.float16,
+}[dtype]
+ctx = torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 model = PolarBearLLM(mcfg).to(torch.bfloat16)
 model.to(device)
@@ -80,6 +89,7 @@ def estimate_loss():
         losses = torch.zeros(trcfg.eval_iters)
         for k in range(trcfg.eval_iters):
             X, Y = get_batch(split)
+            # with ctx:
             logits, loss = model(X, Y)
             losses[k] = loss.item()
         out[split] = losses.mean()
@@ -195,6 +205,7 @@ while True:
     # flush the gradients as soon as we can, no need for this memory anymore
     optimizer.zero_grad(set_to_none=True)
     """
+    # with ctx:
     logits, loss = model(X, Y)
     X, Y = get_batch()
     loss.backward()

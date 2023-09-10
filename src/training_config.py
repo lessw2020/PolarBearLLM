@@ -11,7 +11,7 @@ import torch.nn as nn
 
 @dataclass
 class TrainingConfig:
-    max_iters = 10  # 6000  # total number of training iterations
+    max_iters = 100  # 6000  # total number of training iterations
     out_dir = "out"
     eval_interval = 2000
     log_interval = 1
