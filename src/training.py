@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 from training_config import TrainingConfig
 from model_config import PolarBearConfig
+from model_polarbear import PolarBearLLM
 
 # training loop
 trcfg = TrainingConfig()
@@ -53,3 +54,8 @@ def get_batch(split="train"):
     else:
         x, y = x.to(device), y.to(device)
     return x, y
+
+
+# build model
+
+model = PolarBearLLM(mcfg)
