@@ -115,3 +115,17 @@ class PolarBearLLM(nn.Module):
     extra_args = dict(fused=True) if fused_available else dict()
     optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
     return optimizer
+
+class TransformerLayer(nn.Module):
+
+    def __init__(self, cfg):
+        super().__init__()
+        self.pre_norm = SimpleRMSNorm(cfg.emb_dim)
+        self.attn = CausalSelfAttention(cfg)
+        self.post_norm = SimpleRMSNom(cfg.emb_dim)
+        self.mlp = MLP(cfg)
+
+    def forward(self, x):
+        x = x + self.attn(self.pre_norm(x))
+        x = x + self.mlp(self.post_norm(x))
+        return x
