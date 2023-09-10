@@ -10,6 +10,21 @@ from typing import Optional, List, Tuple
 import torch
 import torch.nn as nn
 
+class MLP(nn.Module):
+
+    def __init__(self, cfg):
+        super().__init__()
+        self.in_proj    = nn.Linear(cfg.emb_dim, cfg.mlp_expansion_factor * cfg.emb_dim )
+        self.act_fn    = nn.GELU()
+        self.out_proj  = nn.Linear(cfg.mlp_expansion_factor * cfg.emb_dim, cfg.emb_dim)
+        
+
+    def forward(self, x):
+        x = self.in_proj(x)
+        x = self.act_fn(x)
+        x = self.out_proj(x)
+        return x
+
 class PolarBearLLM(nn.Module):
   def __init__(self, cfg, ):
         super().__init__()
