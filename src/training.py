@@ -68,7 +68,9 @@ ptdtype = {
 }[dtype]
 ctx = torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
-model = PolarBearLLM(mcfg).to(torch.bfloat16)
+model = PolarBearLLM(mcfg)
+if mcfg.model_to_bf16:
+    model.to(torch.bfloat16)
 model.to(device)
 
 # optimizer

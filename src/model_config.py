@@ -12,10 +12,10 @@ import torch.nn as nn
 @dataclass
 class PolarBearConfig:
     vocab_size: int = 50_304
-    emb_dim: int = 128
+    emb_dim: int = 64
     num_heads: int = 2
     num_kv_heads: int = 0
-    num_layers: int = 2
+    num_layers: int = 1
     mlp_expansion_factor: float = 4
     multiple_of: int = 256
     activation_fn: str = "gelu"
@@ -24,5 +24,7 @@ class PolarBearConfig:
     pos_embeddings: str = "alibi"
     use_sdpa: bool = False
     use_triton_flash: bool = True
+    # set sdpa and triton to false = Manual MHA
     use_learned_emb: bool = True
-    tie_head_with_embedding_weights: bool = True
+    tie_head_with_embedding_weights: bool = False
+    model_to_bf16: bool = False
